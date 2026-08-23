@@ -1,0 +1,52 @@
+# Per-track configuration. Paths are placeholders until real data is downloaded.
+# `normalize` selects the normalization profile in src/lit/text/normalize.py.
+
+defaults:
+  sample_rate: 16000
+  audio_ext: [".mp3", ".wav"]
+  # Candidate backbones to benchmark per track (zero-shot + fine-tuned).
+  # Omni ASR (Apache-2.0, open weights, offline) natively covers every track language incl.
+  # Javanese + Nahuatl varieties — a key advantage over Whisper/MMS. 40s audio limit on standard
+  # variants (segment or use *_Unlimited_*).
+  candidate_models:
+    - "openai/whisper-large-v3"
+    - "facebook/mms-1b-all"
+    - "omniASR_CTC_1B"        # facebookresearch/omnilingual-asr model card
+  # Split policy: hold out whole speakers/sessions, never random utterances.
+  split:
+    strategy: speaker_disjoint   # speaker_disjoint | session_disjoint | kfold
+    dev_frac: 0.10
+    test_frac: 0.10
+    seed: 13
+    kfold: null                  # set to an int (e.g. 5) to use k-fold instead
+
+tracks:
+  es_en:
+    name: "Spanish-English (Bangor Miami)"
+    langs: [es, en]
+    data_dir: "data/bangor_miami"
+    normalize: es_en
+    # Data-rich: full/LoRA Whisper FT is viable.
+    baseline_model: "openai/whisper-large-v3"
+    approach: whisper_lora
+
+  es_nah:
+    name: "Spanish-Nahuatl (W. Sierra Puebla)"
+    langs: [es, nhi]
+    data_dir: "data/nahuatl_wsp"
+    normalize: nahuatl          # applies u/k/s orthography conventions
+    # Extreme low-resource: CTC + KenLM specialist. Use k-fold.
+    baseline_model: "facebook/mms-1b-all"
+    approach: mms_ctc_lm
+    split:
+      strategy: kfold
+      kfold: 5
+      seed: 13
+
+  id_jv:
+    name: "Indonesian-Javanese (Jember)"
+    langs: [id, jv, mad, en]
+    data_dir: "data/jember_javanese"
+    normalize: id_jv
+    baseline_model: "facebook/mms-1b-all"
+    approach: mms_ctc_lm

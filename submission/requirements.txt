@@ -1,0 +1,8 @@
+# Pin exact versions before final submission for reproducibility.
+torch>=2.2
+transformers>=4.44
+peft>=0.12
+librosa>=0.10
+soundfile>=0.12
+pyctcdecode>=0.5
+numpy>=1.26
