@@ -56,6 +56,31 @@ Fine-tuned starting line:
 - `id_jv`: MMS-1B FT or Whisper FT, multilingual char output.
 Log everything to `results/` with the local scorer.
 
+### id_jv Whisper ablation (current — run on Tillicum H200)
+Submittable baseline = `whisper-large-v3`. Trainer: `src/lit/training/aft_whisper.py` (segment-slicing
+loader, official-scorer val WER). Cells decided on **dev** WER:
+```
+# zero-shot ceiling reference
+sbatch --export=ALL,TRACK=id_jv,SPLIT=dev,MODEL=openai/whisper-large-v3,RUN=whisper_zeroshot \
+       scripts/slurm/tillicum_eval.slurm
+# 3 fine-tune cells (own GPU each)
+for A in whisper_full whisper_lora whisper_freeze_enc; do
+  sbatch --export=ALL,TRACK=id_jv,APPROACH=$A scripts/slurm/tillicum_train.slurm
+done
+# then eval each checkpoint on dev
+sbatch --export=ALL,TRACK=id_jv,SPLIT=dev,MODEL=checkpoints/id_jv/whisper_full,RUN=whisper_full \
+       scripts/slurm/tillicum_eval.slurm
+```
+Defaults (env-overridable): lang=id, lr=1e-5, epochs=8 + early-stop(patience 3) on val WER,
+bf16, targets=official-normalized. No n-gram LM (seq2seq). Trains on split=train, early-stops on
+split=val; dev is the honest proxy.
+
+### Omni (deferred — ceiling/teacher; runtime PR pending)
+Before any Omni submission we will FIRST run Omni on Tillicum to capture its exact resolved
+dependency tree, THEN open a PR to the runtime repo to add `omnilingual-asr`/`fairseq2`. Zero-shot
+benchmark targets: `omniASR_LLM_7B` (lang-conditioned) + `omniASR_CTC_7B`; FT (teacher): `CTC_3B`
+full + `CTC_7B` LoRA + KenLM. Not submittable until the PR lands.
+
 ## Phase 2 — Improve over baselines (levers)
 - **External data with rights**: Common Voice (es, id, jv), extra Nahuatl corpora (Pugh et al.).
 - **LM rescoring**: bilingual KenLM + beam search (reuse n-gram ablation harness).

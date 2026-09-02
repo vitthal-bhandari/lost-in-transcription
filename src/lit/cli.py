@@ -7,8 +7,9 @@ import argparse
 from lit.config import get_track
 
 APPROACHES = {
-    "whisper_lora": ("lit.training.aft_whisper", {"use_lora": True}),
-    "whisper_full": ("lit.training.aft_whisper", {"use_lora": False}),
+    "whisper_full": ("lit.training.aft_whisper", {"strategy": "full"}),
+    "whisper_lora": ("lit.training.aft_whisper", {"strategy": "lora"}),
+    "whisper_freeze_enc": ("lit.training.aft_whisper", {"strategy": "freeze_encoder"}),
     "mms_ctc_lm": ("lit.training.aft_mms", {}),
     "xlsr_ctc_lm": ("lit.training.aft_xlsr", {}),
 }
