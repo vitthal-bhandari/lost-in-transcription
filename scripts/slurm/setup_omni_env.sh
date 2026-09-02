@@ -37,6 +37,10 @@ source "$VENV_DIR/bin/activate"
 # Install omnilingual-asr FIRST so it pins its own torch/fairseq2, then add only the light deps our
 # scripts need (scoring + audio + config) — no transformers, to avoid disturbing the fairseq2 stack.
 uv pip install omnilingual-asr
+# torch/torchaudio ABI must match. omni/fairseq2 pin torch==2.8.0, but uv pulls the LATEST
+# torchaudio (2.11.0, a cu13 build that wants libcudart.so.13 — absent; only cu12 libs installed).
+# Force the matching cu12 torchaudio 2.8.0, which uses libcudart.so.12 that torch 2.8.0 provides.
+uv pip install "torchaudio==2.8.0"
 uv pip install jiwer pandas pyarrow typer soundfile librosa pyyaml numpy
 
 # --- capture the resolved dependency tree for the runtime PR ---
@@ -49,5 +53,6 @@ mkdir -p "$REPO_DIR/runtime_pr"
 uv pip freeze >> "$REPO_DIR/runtime_pr/omni_resolved_deps.txt"
 echo ">>> wrote runtime_pr/omni_resolved_deps.txt"
 
-python -c "import omnilingual_asr, torch; print('omni OK | torch', torch.__version__, 'cuda', torch.cuda.is_available())"
+python -c "import omnilingual_asr, torch, torchaudio; print('omni OK | torch', torch.__version__, '| torchaudio', torchaudio.__version__, '| cuda', torch.cuda.is_available())" \
+  || echo ">>> WARN: import check failed on this node; retry inside a GPU job before concluding."
 echo ">>> omni env ready: $VENV_DIR"
