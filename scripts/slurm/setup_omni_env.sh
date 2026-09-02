@@ -27,7 +27,11 @@ case "$REPO_DIR/" in
 esac
 
 VENV_DIR="${OMNI_VENV_DIR:-$REPO_DIR/.venv-omni}"
-uv venv --python 3.12 "$VENV_DIR"
+# omnilingual-asr depends on kenlm==0.3.0, a C++ source build that needs Python.h. The bare system
+# /usr/bin/python3.12 has no dev headers, so force uv's MANAGED CPython (ships headers) — no root
+# needed. Headers land under $UV_PYTHON_INSTALL_DIR (on scratch).
+export UV_PYTHON_PREFERENCE=only-managed
+uv venv --python 3.12 --python-preference only-managed "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 # Install omnilingual-asr FIRST so it pins its own torch/fairseq2, then add only the light deps our
