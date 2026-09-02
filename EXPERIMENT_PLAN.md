@@ -12,11 +12,20 @@ Pursuing **all three tracks, balanced**.
 | `es_nah` | W. Sierra Puebla Nahuatl | ~3.4h, 2,681 pre-seg utts | es, nhi | Extreme low-resource; orthography (u/k/s) sensitive |
 | `id_jv` | Jember Javanese | ~10h, 6,679 utts | id, jv, mad, en | 4-way mixing |
 
-## Rules that shape the design
-- **Code-execution submission**: containerized, offline (no proprietary API, likely no internet),
-  GPU + runtime limits. Reads test MP3/WAV → CSV `audio_filename,transcript`. See `submission/`.
-- **Metric**: `WER = (S+D+I)/N`. Scorer strips meta-linguistic tags, unintelligible markers,
-  punctuation; whole-word match; Nahuatl orthography normalization.
+## Rules that shape the design (confirmed from the official runtime)
+- **Code-execution submission** (`runtime/` submodule = drivendataorg/lost-in-transcription-runtime):
+  `submission.zip` with `main.py` at root → `uv run src/main.py`. Reads
+  `/code_execution/data/submission_format.csv` + `clips/`, writes `submission/submission.csv`.
+  Source in `submission_src/`, pack with `submission_src/pack_submission.sh` (`uvx rpzip`).
+- **Env is fixed**: Python **3.12**, uv **≥0.9.24**, base `nvidia/cuda:13.0.3`, torch on **cu130**,
+  `transformers<5`, and notably **`vllm==0.23.0` + `qwen-asr`** are in the runtime.
+  **`omnilingual-asr`/`fairseq2` are NOT** → Omni ASR is local-research only unless a dep-add is
+  requested/accepted. Whisper, MMS, and **Qwen3-ASR (via vLLM)** run natively.
+- **Inference hardware/limits**: 1×A100 80GB, 24 vCPU, 220GB RAM, **≤2h** (≤1 min smoke), **no
+  network** (weights baked into the zip). 7B models fit.
+- **Metric**: official `runtime/score.py` used AS-IS. `normalize_text` strips `[...]`/`(?)`, unwraps
+  `(word)`, removes `¿¡";:,!?` and periods (keeps `...`), and **lowercases only sentence-initial
+  letters** (preserves acronyms/mid-word case). Our `lit.scoring` imports this exact function.
 - **External data with rights** allowed. **Open-weight models** allowed (public weights, permissive
   license, no hosted API). Competition data must NOT be sent to third-party services.
 - Winners open-source under **MPL**, reproducible with/without retraining.
@@ -35,14 +44,12 @@ moment we obtain the real one.
 - [ ] **Speaker/session-disjoint** splits (`src/lit/data/splits.py`); k-fold for tiny `es_nah`.
 
 ## Phase 1 — Baselines
-Zero-shot floor, all tracks:
-- Whisper large-v3 (+ turbo, for runtime budget), MMS-1B-all (CTC).
-- **Omni ASR (Meta Omnilingual ASR)** — Apache-2.0, open weights, offline (fairseq2). Confirmed
-  native support for spa/eng/ind/**jav** + many Nahuatl varieties (nhi/nhw/azz/…) that Whisper &
-  MMS lack → rules-compliant and likely the strongest zero-shot for jav & nahuatl. Caveats: fairseq2
-  (not transformers, install offline in the container); **40s audio limit** on standard variants
-  (segment or use *_Unlimited_*); 7B ~17 GiB VRAM likely too heavy for the submission budget → prefer
-  CTC / 300M / 1B. Confirm the corpus's exact Nahuatl ISO variety for the `lang` code.
+Zero-shot floor, all tracks (**runtime-compatible models first**, since only these can be submitted):
+- **Qwen3-ASR (via vLLM)** — in the runtime deps; strong multilingual; likely intended baseline.
+- Whisper large-v3 (+ turbo for the runtime budget), MMS-1B-all (CTC).
+- **Omni ASR** — LOCAL RESEARCH ONLY (fairseq2 not in runtime). Still worth benchmarking on the
+  cluster: best zero-shot for jav/nahuatl, and useful for pseudo-labeling / distillation into a
+  submittable model. Not directly submittable unless a dep-add request is accepted.
 Fine-tuned starting line:
 - `es_en`: Whisper large-v3 + LoRA (enough data; likely track winner).
 - `es_nah`: MMS/XLS-R + CTC + bilingual KenLM (low-resource specialist).

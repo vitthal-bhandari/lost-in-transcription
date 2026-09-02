@@ -231,3 +231,10 @@ submission/assets/*
 .env
 __pycache__/
 *.pyc
+
+# --- submission build artifacts ---
+submission/*.zip
+submission/*.csv
+submission/log.txt
+submission_src/assets/*
+!submission_src/assets/.gitkeep

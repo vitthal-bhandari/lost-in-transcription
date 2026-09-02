@@ -5,13 +5,15 @@ defaults:
   sample_rate: 16000
   audio_ext: [".mp3", ".wav"]
   # Candidate backbones to benchmark per track (zero-shot + fine-tuned).
-  # Omni ASR (Apache-2.0, open weights, offline) natively covers every track language incl.
-  # Javanese + Nahuatl varieties — a key advantage over Whisper/MMS. 40s audio limit on standard
-  # variants (segment or use *_Unlimited_*).
+  # SUBMITTABLE (present in the competition runtime): Qwen3-ASR (qwen-asr+vllm), Whisper, MMS.
+  # Omni ASR is LOCAL-RESEARCH ONLY (fairseq2 not in runtime) — best zero-shot for jav/nahuatl and
+  # useful for pseudo-labeling/distillation into a submittable model, but not directly submittable.
   candidate_models:
+    - "Qwen/Qwen3-ASR"          # runtime: qwen-asr + vllm==0.23.0
     - "openai/whisper-large-v3"
     - "facebook/mms-1b-all"
-    - "omniASR_CTC_1B"        # facebookresearch/omnilingual-asr model card
+  local_research_models:
+    - "omniASR_CTC_1B"          # facebookresearch/omnilingual-asr (NOT submittable as-is)
   # Split policy: hold out whole speakers/sessions, never random utterances.
   split:
     strategy: speaker_disjoint   # speaker_disjoint | session_disjoint | kfold

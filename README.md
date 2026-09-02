@@ -18,10 +18,18 @@ src/lit/
   models/  whisper_infer.py mms_infer.py   inference wrappers (zero-shot + fine-tuned)
   training/ aft_whisper.py aft_mms.py aft_xlsr.py   fine-tuning
   lm/      kenlm_build.py  bilingual n-gram LMs for CTC decoding
-scripts/   create_splits.py run_baseline.py  + slurm/ (Tillicum/Hyak)
-submission/ predict.py Dockerfile requirements.txt  the offline inference bundle
+  scoring/ wer.py official.py    local WER via the OFFICIAL runtime/score.py (single source)
+scripts/   create_splits.py run_baseline.py make_gold_csv.py score_local.py download_data.sh + slurm/
+submission_src/ main.py pack_submission.sh assets/   our submission source (packed to submission.zip)
+submission/     build output (submission.zip, gitignored)
+runtime/        official DrivenData runtime as a git SUBMODULE (score.py, Dockerfile, deps)
 results/   eval logs   logs/ slurm job logs   data/ corpora (gitignored)
 ```
+
+## Runtime (fixed by the competition)
+Python 3.12, uv ≥0.9.24, base `nvidia/cuda:13.0.3`, `transformers<5`, `vllm==0.23.0`, `qwen-asr`.
+Inference: 1×A100 80GB, ≤2h, no network. `omnilingual-asr` is NOT in the runtime (local research
+only). Init the submodule after clone: `git submodule update --init runtime`.
 
 ## Setup
 

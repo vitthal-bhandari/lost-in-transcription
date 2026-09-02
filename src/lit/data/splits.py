@@ -69,7 +69,50 @@ def speaker_kfold(
     return df
 
 
+def split_train_corpus(
+    manifest: pd.DataFrame,
+    val_frac: float = 0.10,
+    group_col: str = "session",
+    seed: int = 13,
+) -> pd.DataFrame:
+    """Assign train/val (group-disjoint) to rows whose `split` is NA; leave assigned rows intact.
+
+    Used when a corpus ships its own held-out set (e.g. the official Jember dev): those rows keep
+    their split (e.g. "dev") and only the training pool is carved into train/val here, disjoint by
+    `group_col` (recording/session) and duration-weighted so val gets ~val_frac of the audio.
+    """
+    df = manifest.copy()
+    if "split" not in df.columns:
+        df["split"] = pd.NA
+    mask = df["split"].isna()
+    if not mask.any():
+        return df
+
+    sub = df[mask]
+    weight = sub["duration"].fillna(1.0) if "duration" in sub.columns else pd.Series(1.0, index=sub.index)
+    by_group = weight.groupby(sub[group_col]).sum()
+    total = by_group.sum()
+    ordered = _stable_group_order(list(by_group.index.astype(str)), seed)
+
+    val_target, cum = val_frac * total, 0.0
+    assign = {}
+    for g in ordered:
+        if cum < val_target:
+            assign[g], cum = "val", cum + float(by_group.loc[g])
+        else:
+            assign[g] = "train"
+    df.loc[mask, "split"] = sub[group_col].astype(str).map(assign).values
+    return df
+
+
 def make_splits(manifest: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    # Corpus-defined splits present (some rows already labeled): only carve train/val from the
+    # unassigned training pool, preserving the shipped held-out set.
+    if "split" in manifest.columns and manifest["split"].notna().any():
+        return split_train_corpus(
+            manifest, val_frac=cfg.get("dev_frac", 0.10), group_col="session", seed=cfg.get("seed", 13)
+        )
+
     """Dispatch on cfg['strategy'] (speaker_disjoint | session_disjoint | kfold)."""
     strategy = cfg.get("strategy", "speaker_disjoint")
     seed = cfg.get("seed", 13)

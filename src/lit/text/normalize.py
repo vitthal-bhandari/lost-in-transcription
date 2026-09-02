@@ -1,4 +1,9 @@
-"""Text normalization for training targets and WER scoring.
+"""Text normalization for TRAINING-TARGET cleaning only.
+
+NOTE: WER scoring no longer uses this module. Scoring goes through the OFFICIAL normalization in
+`lit.scoring.official.normalize_text` (imported from the runtime/ submodule's score.py) so local
+numbers match the leaderboard exactly. Prefer the official normalizer for training targets too; this
+module is kept for corpus-specific target cleaning experiments (e.g. Nahuatl orthography).
 
 Adapted from the `clean_transcript` used in low-resource-asr (src/training/aft_mms.py):
 that pipeline removes bracketed annotations, unintelligible markers, and most punctuation,
