@@ -75,10 +75,19 @@ Defaults (env-overridable): lang=id, lr=1e-5, epochs=8 + early-stop(patience 3) 
 bf16, targets=official-normalized. No n-gram LM (seq2seq). Trains on split=train, early-stops on
 split=val; dev is the honest proxy.
 
-### Omni (deferred — ceiling/teacher; runtime PR pending)
-Before any Omni submission we will FIRST run Omni on Tillicum to capture its exact resolved
-dependency tree, THEN open a PR to the runtime repo to add `omnilingual-asr`/`fairseq2`. Zero-shot
-benchmark targets: `omniASR_LLM_7B` (lang-conditioned) + `omniASR_CTC_7B`; FT (teacher): `CTC_3B`
+### Omni (ceiling/teacher; runtime PR pending)
+Isolated env: `bash scripts/slurm/setup_omni_env.sh` (builds `.venv-omni`, dumps the resolved dep
+tree to `runtime_pr/omni_resolved_deps.txt` for the runtime PR). API: `ASRInferencePipeline.transcribe(inp, lang=[...])`
+— **CTC ignores `lang`; LLM needs one code/clip**. Cards are v2 (`omniASR_LLM_7B_v2`, `omniASR_CTC_7B_v2`);
+40s cap (use `_Unlimited_` cards for longer). Zero-shot benchmark on dev (**sweep the LLM lang**):
+```
+# LLM 7B — try Indonesian vs Javanese conditioning
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_LLM_7B_v2,LANG=ind_Latn,RUN=omni_llm7b_ind scripts/slurm/tillicum_omni.slurm
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_LLM_7B_v2,LANG=jav_Latn,RUN=omni_llm7b_jav scripts/slurm/tillicum_omni.slurm
+# CTC 7B — lang ignored (single run)
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_CTC_7B_v2,RUN=omni_ctc7b scripts/slurm/tillicum_omni.slurm
+```
+Then open the PR adding `omnilingual-asr`/`fairseq2` to the runtime. FT (teacher, later): `CTC_3B`
 full + `CTC_7B` LoRA + KenLM. Not submittable until the PR lands.
 
 ## Phase 2 — Improve over baselines (levers)

@@ -1,62 +1,95 @@
-"""Meta Omnilingual ASR (omniASR) inference wrapper.
+"""Meta Omnilingual ASR (omniASR) inference wrapper — real API (fairseq2 pipeline).
 
-Why it matters here: Omni ASR natively covers ALL our tracks' languages — spa_Latn, eng_Latn,
-ind_Latn, jav_Latn, and many Nahuatl varieties (nhi_Latn, nhw_Latn, azz_Latn, ...) — which
-Whisper and MMS largely lack for Javanese/Nahuatl. Apache-2.0 weights + code, runs fully offline
-from cached weights, so it satisfies the competition's open-weight / no-hosted-API rules.
+LOCAL RESEARCH ONLY: fairseq2/omnilingual-asr are NOT in the competition runtime, so Omni output
+cannot be submitted directly (pending a runtime dependency PR). Use for ceiling benchmarks and as a
+teacher for pseudo-labeling/distillation into a submittable model. Runs on Tillicum in a dedicated
+venv (scripts/slurm/setup_omni_env.sh); imports are lazy so this module is importable in the main
+venv (which has no fairseq2).
 
-Integration notes (see facebookresearch/omnilingual-asr):
-  - `pip install omnilingual-asr` (fairseq2 backend, needs libsndfile). NOT a transformers model.
-  - Weights cache to ~/.cache/fairseq2/assets/; pre-download then run offline (bake into the
-    submission image).
-  - Language is passed explicitly as `{code}_{script}`, e.g. "spa_Latn".
-  - **40s audio limit** on standard variants; use an "Unlimited" variant OR segment audio (VAD)
-    for long-form test items. Confirm test segment lengths against the data spec.
-  - Variants: omniASR CTC (fast, ~2-15 GiB VRAM) and LLM 300M/1B/7B (7B ~17 GiB VRAM, ~30 GiB
-    download). Pick by the submission GPU/runtime budget — 7B likely too heavy for the container.
-
-STUB: wire up ASRInferencePipeline once the package is installed on the cluster.
+Language conditioning (the thing to get right):
+  - CTC models IGNORE `lang` (language-agnostic acoustic decode) — we pass None.
+  - LLM models USE `lang` (one code per clip). For code-switched Indonesian-Javanese there is no
+    single "correct" code, so we sweep ind_Latn vs jav_Latn on dev and let WER decide.
+Codes are `{iso639-3}_{script}`; see omnilingual_asr...wav2vec2_llama.lang_ids.supported_langs.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Map our track language codes -> Omni's {code}_{script}. The es_nah entry is a PLACEHOLDER:
-# confirm the exact Nahuatl variety of the W. Sierra Puebla corpus (candidates: nhi/nhw/azz).
+import numpy as np
+
+# Track language -> Omni {code}_{script}. es_nah placeholder pending the corpus's Nahuatl variety.
 OMNI_LANG = {
     "es": "spa_Latn",
     "en": "eng_Latn",
     "id": "ind_Latn",
     "jv": "jav_Latn",
-    "nhi": "nhi_Latn",   # revisit: match the corpus's actual ISO 639-3 variety
+    "nhi": "nhi_Latn",
 }
+
+MAX_AUDIO_SEC = 40.0
+TARGET_SR = 16000
 
 
 @dataclass
 class OmniConfig:
-    model_card: str = "omniASR_CTC_1B"   # or omniASR_LLM_{300M,1B,7B}, *_Unlimited_* for long audio
-    lang: str = "spa_Latn"               # primary decode language for the track
+    model_card: str = "omniASR_LLM_7B_v2"   # or omniASR_CTC_7B_v2, omniASR_LLM_Unlimited_7B_v2, ...
+    lang: str | None = None                  # e.g. "ind_Latn"; ignored for CTC; None allowed
     batch_size: int = 2
-    max_audio_sec: float = 40.0          # standard variants; segment above this
-    device: str = "cuda"
+    max_sec: float = MAX_AUDIO_SEC
+    truncate_long: bool = True               # clamp >max_sec clips (standard cards cap at 40s)
+    device: str | None = None
+
+
+def validate_lang(lang: str | None) -> str | None:
+    """Raise if `lang` is not a supported Omni language code (None is allowed)."""
+    if lang is None:
+        return None
+    from omnilingual_asr.models.wav2vec2_llama.lang_ids import supported_langs
+
+    supported = set(supported_langs)
+    if lang not in supported:
+        near = sorted(c for c in supported if c[:3] == lang[:3])[:8]
+        raise ValueError(f"lang '{lang}' not supported by Omni. Nearby codes: {near or 'none'}")
+    return lang
 
 
 class OmniTranscriber:
     def __init__(self, cfg: OmniConfig):
         self.cfg = cfg
-        self._pipeline = None
+        self.is_ctc = "CTC" in cfg.model_card
+        self._pipe = None
+        if not self.is_ctc:
+            validate_lang(cfg.lang)  # fail fast on a bad LLM lang code
 
     def _ensure_loaded(self):
-        raise NotImplementedError(
-            "OmniTranscriber: from omnilingual_asr.models.inference.pipeline import "
-            "ASRInferencePipeline; init with cfg.model_card. Segment audio > cfg.max_audio_sec."
+        if self._pipe is not None:
+            return
+        import torch
+        from omnilingual_asr.models.inference.pipeline import ASRInferencePipeline
+
+        device = self.cfg.device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self._pipe = ASRInferencePipeline(
+            model_card=self.cfg.model_card, device=device, dtype=torch.bfloat16
         )
 
-    def transcribe(self, audio_path: str) -> str:
+    def transcribe_arrays(self, arrays: list[np.ndarray]) -> list[str]:
+        """Transcribe pre-decoded mono float32 16kHz waveforms."""
         self._ensure_loaded()
-        raise NotImplementedError
+        max_samples = int(self.cfg.max_sec * TARGET_SR)
+        clipped = 0
+        dicts = []
+        for a in arrays:
+            a = np.asarray(a, dtype=np.float32)
+            if self.cfg.truncate_long and len(a) > max_samples:
+                a = a[:max_samples]
+                clipped += 1
+            dicts.append({"waveform": a, "sample_rate": TARGET_SR})
+        if clipped:
+            print(f"[omni] truncated {clipped}/{len(arrays)} clips to {self.cfg.max_sec:.0f}s "
+                  f"(use an omniASR_LLM_Unlimited_* card to avoid this)")
 
-    def transcribe_batch(self, audio_paths: list[str]) -> list[str]:
-        self._ensure_loaded()
-        raise NotImplementedError
+        # CTC ignores lang; LLM gets one code per clip.
+        langs = None if self.is_ctc else [self.cfg.lang] * len(dicts)
+        return self._pipe.transcribe(dicts, lang=langs, batch_size=self.cfg.batch_size)
