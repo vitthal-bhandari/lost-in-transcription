@@ -56,6 +56,40 @@ Fine-tuned starting line:
 - `id_jv`: MMS-1B FT or Whisper FT, multilingual char output.
 Log everything to `results/` with the local scorer.
 
+### id_jv Whisper ablation (current — run on Tillicum H200)
+Submittable baseline = `whisper-large-v3`. Trainer: `src/lit/training/aft_whisper.py` (segment-slicing
+loader, official-scorer val WER). Cells decided on **dev** WER:
+```
+# zero-shot ceiling reference
+sbatch --export=ALL,TRACK=id_jv,SPLIT=dev,MODEL=openai/whisper-large-v3,RUN=whisper_zeroshot \
+       scripts/slurm/tillicum_eval.slurm
+# 3 fine-tune cells (own GPU each)
+for A in whisper_full whisper_lora whisper_freeze_enc; do
+  sbatch --export=ALL,TRACK=id_jv,APPROACH=$A scripts/slurm/tillicum_train.slurm
+done
+# then eval each checkpoint on dev
+sbatch --export=ALL,TRACK=id_jv,SPLIT=dev,MODEL=checkpoints/id_jv/whisper_full,RUN=whisper_full \
+       scripts/slurm/tillicum_eval.slurm
+```
+Defaults (env-overridable): lang=id, lr=1e-5, epochs=8 + early-stop(patience 3) on val WER,
+bf16, targets=official-normalized. No n-gram LM (seq2seq). Trains on split=train, early-stops on
+split=val; dev is the honest proxy.
+
+### Omni (ceiling/teacher; runtime PR pending)
+Isolated env: `bash scripts/slurm/setup_omni_env.sh` (builds `.venv-omni`, dumps the resolved dep
+tree to `runtime_pr/omni_resolved_deps.txt` for the runtime PR). API: `ASRInferencePipeline.transcribe(inp, lang=[...])`
+— **CTC ignores `lang`; LLM needs one code/clip**. Cards are v2 (`omniASR_LLM_7B_v2`, `omniASR_CTC_7B_v2`);
+40s cap (use `_Unlimited_` cards for longer). Zero-shot benchmark on dev (**sweep the LLM lang**):
+```
+# LLM 7B — try Indonesian vs Javanese conditioning
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_LLM_7B_v2,LANG=ind_Latn,RUN=omni_llm7b_ind scripts/slurm/tillicum_omni.slurm
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_LLM_7B_v2,LANG=jav_Latn,RUN=omni_llm7b_jav scripts/slurm/tillicum_omni.slurm
+# CTC 7B — lang ignored (single run)
+sbatch --export=ALL,TRACK=id_jv,CARD=omniASR_CTC_7B_v2,RUN=omni_ctc7b scripts/slurm/tillicum_omni.slurm
+```
+Then open the PR adding `omnilingual-asr`/`fairseq2` to the runtime. FT (teacher, later): `CTC_3B`
+full + `CTC_7B` LoRA + KenLM. Not submittable until the PR lands.
+
 ## Phase 2 — Improve over baselines (levers)
 - **External data with rights**: Common Voice (es, id, jv), extra Nahuatl corpora (Pugh et al.).
 - **LM rescoring**: bilingual KenLM + beam search (reuse n-gram ablation harness).

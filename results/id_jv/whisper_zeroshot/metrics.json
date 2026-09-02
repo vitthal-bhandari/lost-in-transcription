@@ -1,0 +1,13 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model": "openai/whisper-large-v3",
+  "language": "id",
+  "wer": 0.29213611667143263,
+  "substitutions": 3257,
+  "deletions": 1389,
+  "insertions": 462,
+  "hits": 12839,
+  "ref_words": 17485,
+  "n_utts": 372
+}

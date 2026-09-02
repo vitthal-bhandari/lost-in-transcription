@@ -238,3 +238,6 @@ submission/*.csv
 submission/log.txt
 submission_src/assets/*
 !submission_src/assets/.gitkeep
+
+# omni isolated venv
+.venv-omni/
