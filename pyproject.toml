@@ -1,0 +1,52 @@
+[project]
+name = "lost-in-transcription"
+version = "0.1.0"
+description = "Code-switched ASR for the Mozilla Data Collective 'Lost in Transcription' competition"
+readme = "README.md"
+# Match the official runtime (Python 3.12) to avoid version drift between training and submission.
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Kept in sync with the runtime stack (runtime/pyproject.toml) where it matters for parity.
+    "torch",
+    "torchaudio",
+    "transformers<5",          # runtime pins transformers<5
+    "accelerate",
+    "peft",
+    "datasets",
+    "librosa",
+    "soundfile>=0.14.0",
+    "pandas",
+    "polars>=1.43.2",          # submission template uses polars
+    "numpy",
+    "pyarrow",                 # parquet manifests
+    "pyyaml",
+    "tqdm",
+    # Local scoring parity with the official score.py (used AS-IS via runtime/ submodule):
+    "jiwer",
+    "typer",
+]
+
+[project.optional-dependencies]
+# CTC beam-search + KenLM decoding (training-side experiments).
+lm = ["pyctcdecode>=0.5", "kenlm>=0.2"]
+# Qwen3-ASR: present in the runtime (qwen-asr + vllm) → a runtime-compatible strong baseline.
+qwen = ["qwen-asr", "vllm==0.23.0"]
+# LOCAL EXPERIMENTS ONLY — Omni ASR (fairseq2) is NOT in the competition runtime, so anything
+# trained/decoded with it cannot be submitted directly. Use for research/distillation only.
+omni-local = ["omnilingual-asr"]
+dev = ["ruff>=0.6", "pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lit"]
+
+# NOTE: the competition runtime pins uv >=0.9.24 (see runtime/pyproject.toml, the submodule that
+# actually builds the submission). We intentionally do NOT pin it here so this training/eval repo
+# works with the locally installed uv; the container build still enforces the pinned version.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

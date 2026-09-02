@@ -216,3 +216,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- lost-in-transcription ---
+.venv/
+data/**
+!data/.gitkeep
+!data/manifests/.gitkeep
+logs/*.out
+logs/*.err
+checkpoints/
+results/**/predictions.parquet
+submission/assets/*
+!submission/assets/.gitkeep
+.env
+__pycache__/
+*.pyc
+
+# --- submission build artifacts ---
+submission/*.zip
+submission/*.csv
+submission/log.txt
+submission_src/assets/*
+!submission_src/assets/.gitkeep
