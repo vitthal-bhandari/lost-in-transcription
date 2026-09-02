@@ -178,7 +178,10 @@ def train(track_cfg: dict, manifest_path: str, out_dir: str, strategy: str = "fu
     model.generation_config.forced_decoder_ids = None
     model.config.forced_decoder_ids = None
     model.config.suppress_tokens = []
+    model.config.use_cache = False  # incompatible with gradient checkpointing
     model = _apply_strategy(model, strategy)
+    # Required for gradient checkpointing to backprop into inputs (esp. LoRA/frozen base).
+    model.enable_input_require_grads()
 
     collator = DataCollatorSpeechSeq2SeqWithPadding(
         processor=processor, decoder_start_token_id=model.config.decoder_start_token_id)
@@ -194,6 +197,7 @@ def train(track_cfg: dict, manifest_path: str, out_dir: str, strategy: str = "fu
         num_train_epochs=cfg.epochs,
         bf16=torch.cuda.is_available(),
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},  # fixes double-backward on step 0
         eval_strategy="epoch",
         save_strategy="epoch",
         predict_with_generate=True,
