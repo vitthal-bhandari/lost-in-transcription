@@ -78,10 +78,13 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 
 def _target_text(text: str, mode: str) -> str:
+    # Fold pepet/taling diacritics so targets match the dev/test plain-vowel convention (the
+    # Jember transcripts use diacritics the scorer counts as errors). See lit.text.fold_diacritics.
+    from lit.text.normalize import fold_diacritics
     if mode == "official":
         from lit.scoring.official import normalize_text
-        return normalize_text(text)
-    return "" if text is None else str(text)
+        return fold_diacritics(normalize_text(text))
+    return fold_diacritics("" if text is None else str(text))
 
 
 def _build_dataset(df: pd.DataFrame, target_norm: str):

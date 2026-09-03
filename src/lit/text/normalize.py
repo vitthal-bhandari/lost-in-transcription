@@ -21,8 +21,22 @@ separately so training data-prep can reuse the exact same cleaning without forci
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from .nahuatl_ortho import to_uks_orthography
+
+
+def fold_diacritics(text: str) -> str:
+    """Strip combining diacritics: ê/ě/è/é -> e, etc. (NFKD then drop combining marks).
+
+    The Jember (id_jv) training transcripts annotate vowels with pepet/taling diacritics, but the
+    dev/test references use plain vowels and the official scorer does NOT fold them — so a model
+    trained on the diacritic convention scores every such word as a substitution. Folding aligns
+    output with the evaluation convention. It's a no-op on already-plain text.
+    """
+    if text is None:
+        return ""
+    return "".join(c for c in unicodedata.normalize("NFKD", str(text)) if not unicodedata.combining(c))
 
 # --- Regex patterns (ported verbatim from low-resource-asr aft_mms.py) ---
 BRACKETED = re.compile(r"\[[^\]]+\]")        # [/], [//], [: gloss], [x 2], [= comment], @tags in []

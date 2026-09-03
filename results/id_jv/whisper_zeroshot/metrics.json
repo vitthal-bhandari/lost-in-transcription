@@ -9,5 +9,6 @@
   "insertions": 462,
   "hits": 12839,
   "ref_words": 17485,
-  "n_utts": 372
+  "n_utts": 372,
+  "postproc": "fold_diacritics"
 }

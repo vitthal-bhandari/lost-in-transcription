@@ -3,11 +3,12 @@
   "split": "dev",
   "model": "checkpoints/id_jv/whisper_freeze_enc",
   "language": "id",
-  "wer": 0.336231055190163,
-  "substitutions": 4192,
-  "deletions": 914,
-  "insertions": 773,
-  "hits": 12379,
+  "wer": 0.2899628252788104,
+  "substitutions": 3379,
+  "deletions": 916,
+  "insertions": 775,
+  "hits": 13190,
   "ref_words": 17485,
-  "n_utts": 372
+  "n_utts": 372,
+  "postproc": "fold_diacritics"
 }

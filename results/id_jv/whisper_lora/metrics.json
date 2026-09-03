@@ -3,11 +3,12 @@
   "split": "dev",
   "model": "checkpoints/id_jv/whisper_lora/merged",
   "language": "id",
-  "wer": 0.29242207606519877,
-  "substitutions": 3854,
-  "deletions": 655,
-  "insertions": 604,
-  "hits": 12976,
+  "wer": 0.2634257935373177,
+  "substitutions": 3343,
+  "deletions": 657,
+  "insertions": 606,
+  "hits": 13485,
   "ref_words": 17485,
-  "n_utts": 372
+  "n_utts": 372,
+  "postproc": "fold_diacritics"
 }
