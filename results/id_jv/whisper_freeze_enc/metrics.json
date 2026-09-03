@@ -1,0 +1,13 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model": "checkpoints/id_jv/whisper_freeze_enc",
+  "language": "id",
+  "wer": 0.336231055190163,
+  "substitutions": 4192,
+  "deletions": 914,
+  "insertions": 773,
+  "hits": 12379,
+  "ref_words": 17485,
+  "n_utts": 372
+}
