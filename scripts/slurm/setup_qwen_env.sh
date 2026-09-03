@@ -40,6 +40,7 @@ mkdir -p "$REPO_DIR/runtime_pr"
   uv pip freeze; } > "$REPO_DIR/runtime_pr/qwen_resolved_deps.txt"
 echo ">>> wrote runtime_pr/qwen_resolved_deps.txt"
 
-python -c "import qwen_asr, torch, torchaudio; print('qwen OK | torch', torch.__version__, '| torchaudio', torchaudio.__version__, '| cuda', torch.cuda.is_available())" \
+# NOTE: qwen-asr does NOT depend on torchaudio (uses sox/soxr/scipy); don't import it here.
+python -c "import qwen_asr, torch; print('qwen OK | torch', torch.__version__, '| cuda', torch.cuda.is_available())" \
   || echo ">>> WARN: import check failed on this node; retry inside a GPU job before concluding."
 echo ">>> qwen env ready: $VENV_DIR"
