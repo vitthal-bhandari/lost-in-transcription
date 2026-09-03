@@ -25,6 +25,15 @@ export PYTHONPATH="$SLURM_SUBMIT_DIR/src:${PYTHONPATH:-}"
 export XDG_CACHE_HOME="${LIT_CACHE_ROOT:-/gpfs/scrubbed/$USER/.cache}"
 mkdir -p "$XDG_CACHE_HOME"
 
+# fairseq2n dlopens the SYSTEM libsndfile.so.1, which Tillicum lacks. The soundfile wheel bundles
+# libsndfile — expose it under a canonical name on the loader path.
+SND=$(find "$SLURM_SUBMIT_DIR/.venv-omni/lib" -name 'libsndfile*.so*' 2>/dev/null | head -1)
+if [ -n "$SND" ]; then
+  mkdir -p "$SLURM_SUBMIT_DIR/.venv-omni/_snd"
+  ln -sf "$SND" "$SLURM_SUBMIT_DIR/.venv-omni/_snd/libsndfile.so.1"
+  export LD_LIBRARY_PATH="$SLURM_SUBMIT_DIR/.venv-omni/_snd:${LD_LIBRARY_PATH:-}"
+fi
+
 TRACK=${TRACK:?set TRACK}
 SPLIT=${SPLIT:-dev}
 CARD=${CARD:?set CARD=omniASR_LLM_7B_v2|omniASR_CTC_7B_v2|...}

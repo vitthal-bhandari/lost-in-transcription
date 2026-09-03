@@ -53,6 +53,17 @@ mkdir -p "$REPO_DIR/runtime_pr"
 uv pip freeze >> "$REPO_DIR/runtime_pr/omni_resolved_deps.txt"
 echo ">>> wrote runtime_pr/omni_resolved_deps.txt"
 
+# fairseq2n dlopens the system libsndfile.so.1 (absent on Tillicum). Expose the soundfile-bundled
+# copy under a canonical name so both the import check here and the slurm runner find it.
+SND=$(find "$VENV_DIR/lib" -name 'libsndfile*.so*' 2>/dev/null | head -1)
+if [ -n "$SND" ]; then
+  mkdir -p "$VENV_DIR/_snd"; ln -sf "$SND" "$VENV_DIR/_snd/libsndfile.so.1"
+  export LD_LIBRARY_PATH="$VENV_DIR/_snd:${LD_LIBRARY_PATH:-}"
+  echo ">>> libsndfile exposed for fairseq2n: $SND"
+else
+  echo ">>> WARN: no bundled libsndfile found under soundfile; fairseq2n import may fail."
+fi
+
 python -c "import omnilingual_asr, torch, torchaudio; print('omni OK | torch', torch.__version__, '| torchaudio', torchaudio.__version__, '| cuda', torch.cuda.is_available())" \
   || echo ">>> WARN: import check failed on this node; retry inside a GPU job before concluding."
 echo ">>> omni env ready: $VENV_DIR"
