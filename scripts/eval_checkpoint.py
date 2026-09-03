@@ -40,6 +40,9 @@ def main() -> None:
     ap.add_argument("--run-name", default=None)
     ap.add_argument("--language", default=None, help="override decode language (default: track lang)")
     ap.add_argument("--batch-size", type=int, default=16)
+    ap.add_argument("--fold-diacritics", default=True, action=argparse.BooleanOptionalAction,
+                    help="fold pepet/taling vowel diacritics to plain (id_jv convention); "
+                         "--no-fold-diacritics to disable")
     args = ap.parse_args()
 
     from transformers import WhisperForConditionalGeneration, WhisperProcessor
@@ -69,8 +72,10 @@ def main() -> None:
         print(f"  decoded {min(i + args.batch_size, len(df))}/{len(df)}", flush=True)
 
     # Fold pepet/taling diacritics to the dev/test plain-vowel convention (see lit.text).
-    from lit.text.normalize import fold_diacritics
-    df["prediction"] = [fold_diacritics(p) for p in preds]
+    if args.fold_diacritics:
+        from lit.text.normalize import fold_diacritics
+        preds = [fold_diacritics(p) for p in preds]
+    df["prediction"] = preds
     result = wer_corpus(df["text"].tolist(), df["prediction"].tolist())
 
     run_name = args.run_name or f"whisper_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}"
