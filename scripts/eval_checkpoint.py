@@ -68,7 +68,9 @@ def main() -> None:
         preds.extend(t.strip() for t in processor.batch_decode(gen, skip_special_tokens=True))
         print(f"  decoded {min(i + args.batch_size, len(df))}/{len(df)}", flush=True)
 
-    df["prediction"] = preds
+    # Fold pepet/taling diacritics to the dev/test plain-vowel convention (see lit.text).
+    from lit.text.normalize import fold_diacritics
+    df["prediction"] = [fold_diacritics(p) for p in preds]
     result = wer_corpus(df["text"].tolist(), df["prediction"].tolist())
 
     run_name = args.run_name or f"whisper_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}"

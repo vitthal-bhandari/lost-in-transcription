@@ -3,11 +3,12 @@
   "split": "dev",
   "model": "checkpoints/id_jv/whisper_full",
   "language": "id",
-  "wer": 0.3066056619959966,
-  "substitutions": 4155,
-  "deletions": 583,
-  "insertions": 623,
-  "hits": 12747,
+  "wer": 0.25919359450957963,
+  "substitutions": 3320,
+  "deletions": 586,
+  "insertions": 626,
+  "hits": 13579,
   "ref_words": 17485,
-  "n_utts": 372
+  "n_utts": 372,
+  "postproc": "fold_diacritics"
 }

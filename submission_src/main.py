@@ -57,7 +57,13 @@ def main() -> None:
     # Whisper decoding hygiene helps on conversational, code-switched audio.
     generate_kwargs = {"condition_on_prev_tokens": False, "temperature": 0.0}
     outputs = asr(paths, batch_size=BATCH_SIZE, generate_kwargs=generate_kwargs)
-    transcripts = [o["text"].strip() for o in outputs]
+    # Fold vowel diacritics to the dev/test plain-vowel convention (id_jv): the model may emit
+    # pepet/taling marks the scorer counts as errors. No-op on plain text. Self-contained so the
+    # zip needs no extra module.
+    import unicodedata
+    def _fold(s: str) -> str:
+        return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+    transcripts = [_fold(o["text"].strip()) for o in outputs]
 
     submission = submission.with_columns(pl.Series("transcript", transcripts))
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
