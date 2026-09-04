@@ -241,3 +241,6 @@ submission_src/assets/*
 
 # omni isolated venv
 .venv-omni/
+
+# qwen isolated venv
+.venv-qwen/
