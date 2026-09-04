@@ -1,0 +1,14 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model_card": "omniASR_CTC_300M_v2",
+  "lang": "C.UTF-8",
+  "is_ctc": true,
+  "wer": 0.48881898770374604,
+  "substitutions": 5595,
+  "deletions": 2578,
+  "insertions": 374,
+  "hits": 9312,
+  "ref_words": 17485,
+  "n_utts": 372
+}

@@ -1,0 +1,13 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model": "Qwen/Qwen3-ASR-1.7B",
+  "language": "Indonesian",
+  "wer": 0.2527881040892193,
+  "substitutions": 3328,
+  "deletions": 635,
+  "insertions": 457,
+  "hits": 13522,
+  "ref_words": 17485,
+  "n_utts": 372
+}

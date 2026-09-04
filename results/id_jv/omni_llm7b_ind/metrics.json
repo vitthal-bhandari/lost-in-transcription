@@ -1,0 +1,14 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model_card": "omniASR_LLM_7B_v2",
+  "lang": "ind_Latn",
+  "is_ctc": false,
+  "wer": 0.25244495281670004,
+  "substitutions": 3152,
+  "deletions": 894,
+  "insertions": 368,
+  "hits": 13439,
+  "ref_words": 17485,
+  "n_utts": 372
+}
