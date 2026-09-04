@@ -34,7 +34,9 @@ python scripts/qwen_lora_patch.py "$SFT" scripts/vendor/qwen3_asr_sft_lora.py
 
 FT_DIR=data/jember_javanese/qwen_ft
 OUT=${OUT:-checkpoints/id_jv/qwen_lora}
-EPOCHS=${EPOCHS:-3}; LR=${LR:-1e-4}; R=${R:-16}; ALPHA=${ALPHA:-32}
+# NOTE: first run at LR=1e-4 flatlined (loss ~19 from epoch 1 on, grad_norm collapsed to ~1.2-1.7)
+# -- likely too high for this LoRA config. Default lowered; override to sweep.
+EPOCHS=${EPOCHS:-3}; LR=${LR:-3e-5}; R=${R:-16}; ALPHA=${ALPHA:-32}
 
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 echo "=== qwen LoRA FT: epochs=$EPOCHS lr=$LR r=$R alpha=$ALPHA -> $OUT ==="
