@@ -25,6 +25,16 @@ def main() -> None:
     print(f"[merge] loading LoRA adapter from {adapter} ...", flush=True)
     w.model = PeftModel.from_pretrained(w.model, adapter).merge_and_unload()
     os.makedirs(out, exist_ok=True)
+
+    # Qwen3-ASR's base generation_config.json ships temperature=1e-6 with do_sample=False, an
+    # internally-inconsistent (but historically harmless) combo. This transformers version
+    # validates strictly on save() and raises rather than warns, crashing AFTER weights are
+    # already written. Drop the unused sampling knob so save_pretrained succeeds.
+    gc = w.model.generation_config
+    if getattr(gc, "do_sample", False) is False:
+        gc.temperature = None
+        gc.top_p = None
+        gc.top_k = None
     print(f"[merge] saving merged model -> {out} ...", flush=True)
     w.model.save_pretrained(out, safe_serialization=True)
     w.processor.save_pretrained(out)
