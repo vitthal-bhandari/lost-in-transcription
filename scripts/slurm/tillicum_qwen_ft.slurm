@@ -46,15 +46,17 @@ python "$SFT" \
   --sr 16000 --batch_size "$BS" --grad_acc "$GA" --lr "$LR" --epochs "$EPOCHS" \
   --save_steps 200 --save_total_limit 3
 
-# Qwen's SFT saves model+tokenizer but NOT the feature-extractor config; copy it from the base
-# into each checkpoint so from_pretrained can build the processor (checkpoints are self-contained).
-BASE_PP=$(find "$HF_HUB_CACHE" -path '*Qwen3-ASR-1.7B*' -name preprocessor_config.json 2>/dev/null | head -1)
-if [ -n "$BASE_PP" ]; then
-  for ckpt in "$OUT"/checkpoint-*/; do cp -n "$BASE_PP" "$ckpt" 2>/dev/null || true; done
-  echo ">>> copied preprocessor_config.json into checkpoints"
-else
-  echo ">>> WARN: base preprocessor_config.json not found; copy it into checkpoints before eval"
-fi
+# Qwen's SFT saves model+tokenizer but NOT the full processor (feature extractor + chat template),
+# so Qwen3ASRModel.from_pretrained(checkpoint) fails. The processor is unchanged by fine-tuning,
+# so save the complete base processor into each checkpoint (makes them self-contained).
+python - "$OUT" <<'PY'
+import glob, sys
+import qwen_asr  # registers the Qwen3-ASR processor for AutoProcessor
+from transformers import AutoProcessor
+proc = AutoProcessor.from_pretrained("Qwen/Qwen3-ASR-1.7B", fix_mistral_regex=True)
+for ckpt in glob.glob(sys.argv[1] + "/checkpoint-*"):
+    proc.save_pretrained(ckpt); print("processor ->", ckpt)
+PY
 
 echo "=== done. eval a checkpoint on dev with: ==="
 echo "sbatch --export=ALL,TRACK=id_jv,SPLIT=dev,MODEL=$OUT/checkpoint-XXXX,LANG=Indonesian,RUN=qwen_ft scripts/slurm/tillicum_qwen.slurm"
