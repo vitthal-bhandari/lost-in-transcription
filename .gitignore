@@ -244,3 +244,6 @@ submission_src/assets/*
 
 # qwen isolated venv
 .venv-qwen/
+
+# vendored third-party training scripts (fetched at runtime)
+scripts/vendor/

@@ -27,9 +27,9 @@ mkdir -p "$HF_HUB_CACHE"
 TRACK=${TRACK:?set TRACK}
 SPLIT=${SPLIT:-dev}
 MODEL=${MODEL:-Qwen/Qwen3-ASR-1.7B}
-LANG=${LANG:-auto}          # 'auto' (detect) or a full name e.g. Indonesian
+LANGCODE=${LANGCODE:-auto}          # 'auto' (detect) or a full name e.g. Indonesian
 RUN=${RUN:-qwen}
 
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 python scripts/qwen_zeroshot.py --track "$TRACK" --split "$SPLIT" \
-    --model-id "$MODEL" --language "$LANG" --run-name "$RUN"
+    --model-id "$MODEL" --language "$LANGCODE" --run-name "$RUN"

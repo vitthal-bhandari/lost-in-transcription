@@ -1,0 +1,13 @@
+{
+  "track": "id_jv",
+  "split": "dev",
+  "model": "Qwen/Qwen3-ASR-1.7B",
+  "language": "auto",
+  "wer": 0.26737203317128966,
+  "substitutions": 3563,
+  "deletions": 627,
+  "insertions": 485,
+  "hits": 13295,
+  "ref_words": 17485,
+  "n_utts": 372
+}
