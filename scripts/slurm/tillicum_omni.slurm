@@ -37,10 +37,10 @@ fi
 TRACK=${TRACK:?set TRACK}
 SPLIT=${SPLIT:-dev}
 CARD=${CARD:?set CARD=omniASR_LLM_7B_v2|omniASR_CTC_7B_v2|...}
-LANG=${LANG:-none}          # LLM: ind_Latn / jav_Latn ; CTC: ignored
+LANGCODE=${LANGCODE:-none}          # LLM: ind_Latn / jav_Latn ; CTC: ignored
 RUN=${RUN:-omni}
 BATCH=${BATCH:-2}
 
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader || true
 python scripts/omni_zeroshot.py --track "$TRACK" --split "$SPLIT" \
-    --model-card "$CARD" --lang "$LANG" --batch-size "$BATCH" --run-name "$RUN"
+    --model-card "$CARD" --lang "$LANGCODE" --batch-size "$BATCH" --run-name "$RUN"
