@@ -247,3 +247,4 @@ submission_src/assets/*
 
 # vendored third-party training scripts (fetched at runtime)
 scripts/vendor/
+.DS_Store
