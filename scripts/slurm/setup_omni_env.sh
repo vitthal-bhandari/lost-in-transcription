@@ -2,7 +2,7 @@
 # Set up a SEPARATE venv for Meta Omnilingual ASR (fairseq2 stack), isolated from the main .venv so
 # it can't clobber the runtime-aligned torch/transformers pins. Also DUMPS the fully-resolved
 # dependency tree to runtime_pr/omni_resolved_deps.txt — the exact list we need for the PR that
-# adds omnilingual-asr to the competition runtime. 
+# adds omnilingual-asr to the competition runtime.
 #
 # Run from repo root:  bash scripts/slurm/setup_omni_env.sh
 set -euo pipefail
