@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # CTC beam-search + KenLM decoding (training-side experiments).
-lm = ["pyctcdecode>=0.5", "kenlm>=0.2"]
+lm = ["pyctcdecode==0.5.0", "kenlm==0.3.0"]  # pinned to match runtime/pyproject.toml exactly
 # Qwen3-ASR: present in the runtime (qwen-asr + vllm) → a runtime-compatible strong baseline.
 qwen = ["qwen-asr", "vllm==0.23.0"]
 # LOCAL EXPERIMENTS ONLY — Omni ASR (fairseq2) is NOT in the competition runtime, so anything
