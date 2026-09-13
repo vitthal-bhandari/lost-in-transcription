@@ -118,17 +118,106 @@ def _prepare_indonesian_dev(root: Path) -> pd.DataFrame:
     return df[MANIFEST_COLUMNS].reset_index(drop=True)
 
 
-def prepare_id_jv(data_dir: str | Path) -> pd.DataFrame:
-    """Build the Jember Javanese-Indonesian manifest: sliced train segments + official dev clips.
+def _parse_timestamp(value) -> float:
+    """Accept either a plain seconds value or an 'H:MM:SS[.mmm]' string."""
+    s = str(value).strip()
+    try:
+        return float(s)
+    except ValueError:
+        return _hms_to_seconds(s)
+
+
+def _prepare_podcast_corpus(root: Path, name: str, session_prefix: str) -> pd.DataFrame:
+    """Generic loader for extra podcast corpora shipped as long-form audio + a segment TSV with
+    columns close to Jember's (audio file[name], start, end, text) — e.g. Homostoria, Hari
+    Minggoean. `root` is the corpus's own extracted directory (not the id_jv data_dir).
+
+    Not part of the official id_jv corpus: written with subset="train_corpus" so it flows through
+    the same session-disjoint train/val split as Jember, just tagged with a distinct session
+    prefix so recordings never collide across corpora.
+    """
+    tsv = _find_one(root, "*.tsv")
+    df = pd.read_csv(tsv, sep="\t", dtype=str)
+
+    # Column names vary slightly by corpus ("audio file" vs "Audio file name" vs "audio_file").
+    cols = {c.lower().strip(): c for c in df.columns}
+    audio_col = next((cols[k] for k in cols if "audio" in k), None)
+    text_col = next((cols[k] for k in cols if k in ("text", "transcription", "transcript")), None)
+    if audio_col is None or text_col is None or "start" not in cols or "end" not in cols:
+        raise ValueError(f"{name}: unexpected TSV columns {list(df.columns)} in {tsv}")
+
+    df = df.rename(columns={audio_col: "rec", cols["start"]: "start_raw",
+                            cols["end"]: "end_raw", text_col: "text"})
+    df = df[df["text"].notna() & (df["text"].astype(str).str.strip() != "")].copy()
+
+    df["start"] = df["start_raw"].map(_parse_timestamp)
+    df["end"] = df["end_raw"].map(_parse_timestamp)
+    degenerate = df["end"] <= df["start"]
+    if degenerate.any():
+        print(f"[{name}] padding {int(degenerate.sum())} zero/negative-length segments to 1s")
+        df.loc[degenerate, "end"] = df.loc[degenerate, "start"] + 1.0
+    df["duration"] = (df["end"] - df["start"]).clip(lower=0.0)
+
+    audio_dir_candidates = [p for p in root.rglob("*") if p.is_dir() and
+                            any(f.suffix.lower() == ".mp3" for f in p.glob("*"))]
+    audio_dir = audio_dir_candidates[0] if audio_dir_candidates else root
+
+    def _resolve(rec: str) -> str:
+        rec = str(rec).strip()
+        stem = rec if rec.lower().endswith(".mp3") else f"{rec}.mp3"
+        hit = audio_dir / stem
+        if not hit.exists():
+            hits = list(root.rglob(stem))
+            hit = hits[0] if hits else hit
+        return str(hit)
+
+    df["audio_path"] = df["rec"].map(_resolve)
+    df["session"] = session_prefix + df["rec"].astype(str)
+    df["speaker"] = pd.NA
+    df["language"] = "javind"
+    df["subset"] = "train_corpus"
+    df["split"] = pd.NA
+    df["track"] = "id_jv"
+
+    present = df["audio_path"].map(lambda p: Path(p).exists())
+    missing = int((~present).sum())
+    if missing:
+        print(f"[{name}] dropping {missing} segments with missing audio files")
+    return df[present][MANIFEST_COLUMNS].reset_index(drop=True)
+
+
+def prepare_homostoria(data_dir: str | Path) -> pd.DataFrame:
+    """Podcast Homostoria: 11h, 16 files, spontaneous Indonesian-English-Javanese code-switched
+    dialogue, linguist-reviewed. Extra training-only corpus (no dev/test counterpart)."""
+    return _prepare_podcast_corpus(Path(data_dir), "homostoria", "homo_")
+
+
+def prepare_hari_minggoean(data_dir: str | Path) -> pd.DataFrame:
+    """Podcast Hari Minggoean: 10h, 42 files, single-speaker spontaneous Indonesian with English
+    code-switching and Javanese-accented speech. Extra training-only corpus."""
+    return _prepare_podcast_corpus(Path(data_dir), "hari_minggoean", "hm_")
+
+
+def prepare_id_jv(data_dir: str | Path, extra_dirs: dict[str, str] | None = None) -> pd.DataFrame:
+    """Build the Jember Javanese-Indonesian manifest: sliced train segments + official dev clips,
+    optionally pooled with extra podcast corpora.
 
     The official `dev` set matches the hidden-test distribution, so we keep it whole as our eval
     proxy and split the training corpus into train/val by *recording* (session-disjoint) later in
     create_splits.py. Returns rows with subset in {train_corpus, dev}; train rows have split=NA.
+
+    `extra_dirs`: optional {name: dir} to pool in, e.g. {"homostoria": "data/homostoria"}.
     """
     root = Path(data_dir)
     train_df = _prepare_jember_train(root)
     dev_df = _prepare_indonesian_dev(root)
-    return pd.concat([train_df, dev_df], ignore_index=True)
+    frames = [train_df, dev_df]
+    extra_preparers = {"homostoria": prepare_homostoria, "hari_minggoean": prepare_hari_minggoean}
+    for name, d in (extra_dirs or {}).items():
+        if name not in extra_preparers:
+            raise ValueError(f"unknown extra corpus '{name}'; known: {list(extra_preparers)}")
+        frames.append(extra_preparers[name](d))
+    return pd.concat(frames, ignore_index=True)
 
 
 PREPARERS = {

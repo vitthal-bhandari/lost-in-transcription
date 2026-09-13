@@ -111,3 +111,61 @@ UW HPC: Tillicum + Hyak (Slurm). Scripts in `scripts/slurm/`. Eval logs in `resu
 2. Official normalization/scorer script.
 3. Submission spec: base image, GPU type, wall-clock limit, daily submission cap, one vs three submissions.
 4. Provided splits / dev set?
+
+---
+
+## Phase 4 — id_jv parallel experiment grid (2026-09-12)
+
+**Standings**: public leaderboard #1 = 0.2196 (Univ. Hawaii Manoa), we're #43 at 0.2898 (1
+submission used, 2 left). Best dev so far: Qwen3-ASR-1.7B zero-shot forced Indonesian = 0.2528
+(still beats every fine-tune attempted). Diagnosed cause of 3/3 fine-tune regressions: train
+segments (Jember, median ~5-8s) are much shorter than dev clips, plus a register/diacritic
+convention gap — see [[lost-in-transcription-approach]] memory.
+
+**Data now available**: Jember (10h, gitignored `data/jember_javanese/`) + Homostoria (11.3h,
+5163 segments, `data/homostoria/`, linguist-reviewed Ind-Eng-Jav code-switch, same TSV schema as
+Jember — see `prepare_homostoria` in `src/lit/data/prepare.py`). Pooled manifest built:
+`data/manifests/id_jv_plus_homostoria.parquet` (train 10,737 / val 1,105 / dev 372).
+Hari Minggoean (10h, single-speaker) identified but not yet downloaded.
+
+**Runtime now supports** (pyproject.toml updated 2026-09-11): `faster-whisper`+`ctranslate2`
+(CTranslate2 Whisper inference, real beam search/VAD/hallucination guards) and `kenlm`+
+`pyctcdecode` (CTC+n-gram-LM decoding — MMS-1B-all pipeline built, see `scripts/mms_zeroshot.py`).
+Omni (`fairseq2`) still NOT in the runtime.
+
+### Step 0 — prerequisite, not yet built
+**Segment-concatenation**: join consecutive same-recording short segments (Jember + Homostoria)
+into ~20-35s windows matching dev's length distribution. Required before any fine-tuning cell
+below — without it we'd likely reproduce the same length-collapse regression seen in the Qwen
+full-FT/LoRA attempts. Build this next.
+
+### Cells that can run NOW (no prerequisite)
+```bash
+# MMS-1B-all zero-shot, greedy CTC (no LM) — pure acoustic baseline
+sbatch --export=ALL,TRACK=id_jv,RUN=mms_greedy scripts/slurm/tillicum_mms.slurm
+
+# Build a KenLM on Jember+Homostoria text (our own convention), then MMS+KenLM
+sbatch --export=ALL,MANIFEST=data/manifests/id_jv_plus_homostoria.parquet,\
+OUT=data/lm/id_jv_plus_homostoria,ORDER=4 scripts/slurm/tillicum_build_kenlm.slurm
+# (after the LM build completes:)
+sbatch --export=ALL,TRACK=id_jv,MANIFEST=data/manifests/id_jv_plus_homostoria.parquet,\
+KENLM=data/lm/id_jv_plus_homostoria/lm_4gram.bin,RUN=mms_kenlm scripts/slurm/tillicum_mms.slurm
+
+# faster-whisper conversion of the existing whisper_full checkpoint + beam search decode
+# (not yet built — do after MMS cells if promising)
+```
+
+### Cells gated on Step 0 (segment-concatenation)
+| Run name | Model | Data | Purpose |
+|---|---|---|---|
+| `qwen_lora_concat_jember` | Qwen3-ASR LoRA | Jember only, length-fixed | isolate: does fixing length alone beat 0.2528? |
+| `qwen_lora_concat_plus_homo` | Qwen3-ASR LoRA | Jember + Homostoria, length-fixed | isolate: does more matched data help on top? |
+| `whisper_full_concat` | Whisper full-FT | Jember + Homostoria, length-fixed | parity check against the currently-submitted model |
+
+Each writes to a distinct `results/id_jv/<run_name>/` and `checkpoints/id_jv/<run_name>/` — safe
+to `sbatch` all of them at once once Step 0 exists; they run as independent H200 jobs.
+
+### Discipline
+- All of the above stay on **dev only**. A submission is spent only once a cell clearly beats
+  0.2528 dev by a real margin (submission #1's dev→public gap was +0.031).
+- Compare everything via `python3 scripts/leaderboard.py --track id_jv` once jobs land.
