@@ -3,7 +3,7 @@
 
 Decodes with an Omni model card, scores with the OFFICIAL normalization, writes predictions.csv +
 metrics.json under results/<track>/<run>/. LLM cards need a --lang; sweep ind_Latn vs jav_Latn for
-the code-switched id_jv track. CTC cards ignore --lang. 
+the code-switched id_jv track. CTC cards ignore --lang.
 
 Examples (see scripts/slurm/tillicum_omni.slurm):
     python scripts/omni_zeroshot.py --track id_jv --split dev \
